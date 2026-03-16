@@ -23,8 +23,6 @@ import json
 import gdown
 from datetime import datetime
 import warnings
-import matplotlib.pyplot as plt
-
 warnings.filterwarnings('ignore')
 
 # ==============================================================================
@@ -43,7 +41,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# UGANDA FLAG COLOR THEME
+# UGANDA FLAG COLOR THEME - FIXED FOR BOTH LIGHT AND DARK MODE
 # ==============================================================================
 UGANDA_COLORS = {
     'black': '#000000',
@@ -56,7 +54,7 @@ UGANDA_COLORS = {
     'dark_gray': '#2C3E50'
 }
 
-# Custom CSS for professional UI with better text visibility
+# Custom CSS for professional UI - FIXED DARK THEME
 st.markdown(f"""
     <style>
     .main {{
@@ -71,7 +69,7 @@ st.markdown(f"""
         color: {UGANDA_COLORS['black']} !important;
         font-family: 'Segoe UI', sans-serif;
     }}
-    p, li, div, span, label {{
+    p, li, div, span, label, small {{
         color: {UGANDA_COLORS['black']} !important;
     }}
     .stButton>button {{
@@ -113,6 +111,10 @@ st.markdown(f"""
     }}
     .stAlert, .stSuccess, .stError, .stWarning, .stInfo {{
         color: {UGANDA_COLORS['black']} !important;
+    }}
+    input, select, textarea {{
+        color: {UGANDA_COLORS['black']} !important;
+        background-color: {UGANDA_COLORS['white']} !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -178,7 +180,7 @@ def load_models_from_drive():
 st.sidebar.info("📦 Loading models...")
 model, encoder, expected_features = load_models_from_drive()
 
-if model is not None:
+if model is not None and encoder is not None and expected_features is not None:
     st.sidebar.success("✅ Models ready!")
     MODEL_READY = True
 else:
@@ -187,13 +189,13 @@ else:
     expected_features = []
 
 # ==============================================================================
-# PREPROCESSING PIPELINE
+# PREPROCESSING PIPELINE - FIXED ERROR HANDLING
 # ==============================================================================
 class PreprocessingPipeline:
     """Preprocessing pipeline matching Phase 4 transformations"""
     
     def __init__(self, expected_features, scaler=None, imputer=None):
-        self.expected_features = expected_features if isinstance(expected_features, list) else []
+        self.expected_features = expected_features if expected_features else []
         self.scaler = scaler
         self.imputer = imputer
     
@@ -210,30 +212,39 @@ class PreprocessingPipeline:
         return df_copy
     
     def ensure_feature_order(self, df):
-        """Ensure features are in the same order as training data"""
-        # Make sure expected_features is a list
-        feature_list = list(self.expected_features) if self.expected_features else []
+        """Ensure features are in the same order as training data - FIXED"""
+        if not self.expected_features:
+            st.error("❌ Expected features list is empty. Models may not have loaded correctly.")
+            return df
         
-        # Add missing features with default value
-        for feature in feature_list:
+        # Make sure all expected features exist
+        for feature in self.expected_features:
             if feature not in df.columns:
                 df[feature] = 0
         
-        # Return DataFrame with features in correct order using list indexing
-        return df[feature_list]
+        # Return DataFrame with features in correct order
+        try:
+            return df[self.expected_features]
+        except Exception as e:
+            st.error(f"❌ Error in feature ordering: {str(e)}")
+            return df
     
     def transform(self, input_data):
         """Complete preprocessing pipeline"""
-        df = pd.DataFrame([input_data])
-        df = self.handle_missing_values(df)
-        df = self.ensure_feature_order(df)
-        if self.scaler is not None:
-            df_values = self.scaler.transform(df.values)
-            df = pd.DataFrame(df_values, columns=self.expected_features)
-        return df
+        try:
+            df = pd.DataFrame([input_data])
+            df = self.handle_missing_values(df)
+            df = self.ensure_feature_order(df)
+            if self.scaler is not None:
+                df_values = self.scaler.transform(df.values)
+                df = pd.DataFrame(df_values, columns=self.expected_features)
+            return df
+        except Exception as e:
+            st.error(f"❌ Error in preprocessing: {str(e)}")
+            return pd.DataFrame([input_data])
 
 # ==============================================================================
-# PREDICTION ENGINE
+# PREDICTION ENGINE - FIXED ERROR HANDLING
 # ==============================================================================
 class PredictionEngine:
     """Prediction engine integrating model, encoder, and preprocessing"""
@@ -248,6 +259,10 @@ class PredictionEngine:
         start_time = datetime.now()
         try:
             X_processed = self.pipeline.transform(input_data)
+            
+            if X_processed.empty:
+                return {'status': 'error', 'error': 'No features to predict on', 'timestamp': start_time.isoformat()}
+            
             prediction_encoded = self.model.predict(X_processed)[0]
             prediction_class = self.encoder.inverse_transform([prediction_encoded])[0]
             
@@ -379,6 +394,7 @@ else:
 # ==============================================================================
 def plot_feature_importance_shap(shap_data, top_n=10):
     """Create SHAP feature importance bar chart"""
+    import matplotlib.pyplot as plt
     if shap_data is None or len(shap_data) == 0:
         return None
     
@@ -398,6 +414,7 @@ def plot_feature_importance_shap(shap_data, top_n=10):
 
 def plot_prediction_confidence(probabilities, predicted_class):
     """Create prediction confidence visualization"""
+    import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(8, 6))
     
     classes = list(probabilities.keys())
@@ -421,6 +438,7 @@ def plot_prediction_confidence(probabilities, predicted_class):
 
 def plot_stakeholder_distribution(recommendations):
     """Create stakeholder distribution pie chart"""
+    import matplotlib.pyplot as plt
     if not recommendations:
         return None
     
@@ -448,6 +466,7 @@ def plot_stakeholder_distribution(recommendations):
 
 def plot_fairness_metrics(fairness_data):
     """Create fairness metrics dashboard"""
+    import matplotlib.pyplot as plt
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
     if fairness_data:
