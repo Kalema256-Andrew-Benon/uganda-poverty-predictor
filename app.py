@@ -23,6 +23,8 @@ import json
 import gdown
 from datetime import datetime
 import warnings
+import matplotlib.pyplot as plt
+
 warnings.filterwarnings('ignore')
 
 # ==============================================================================
@@ -41,7 +43,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# UGANDA FLAG COLOR THEME - FIXED FOR BOTH LIGHT AND DARK MODE
+# UGANDA FLAG COLOR THEME
 # ==============================================================================
 UGANDA_COLORS = {
     'black': '#000000',
@@ -54,7 +56,7 @@ UGANDA_COLORS = {
     'dark_gray': '#2C3E50'
 }
 
-# Custom CSS for professional UI - FIXED DARK THEME
+# Custom CSS for professional UI
 st.markdown(f"""
     <style>
     .main {{
@@ -109,49 +111,35 @@ st.markdown(f"""
     .low-priority {{
         border-left: 4px solid {UGANDA_COLORS['green']};
     }}
-    .stAlert, .stSuccess, .stError, .stWarning, .stInfo {{
-        color: {UGANDA_COLORS['black']} !important;
-    }}
-    input, select, textarea {{
-        color: {UGANDA_COLORS['black']} !important;
-        background-color: {UGANDA_COLORS['white']} !important;
-    }}
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# GOOGLE DRIVE MODEL LOADING (UPDATED WITH CORRECT FILE IDs)
+# GOOGLE DRIVE MODEL LOADING
 # ==============================================================================
-# Verified File IDs - Anyone with link can access
-MODEL_FILE_ID = "1QXMxKVk-FY1GgCMep_8hywSCp1cyoXP4"  # Stacking_Ensemble_phase8_final.pkl
-ENCODER_FILE_ID = "1IsxKe_N5FThXB8N7NmZHcTlTuZAFvTAw"  # target_label_encoder_phase8.pkl
-FEATURES_FILE_ID = "1uZmVO_qaDXzhIGFeZK8qnpioFTiJ6W_8"  # feature_list_phase8.json
+MODEL_FILE_ID = "1QXMxKVk-FY1GgCMep_8hywSCp1cyoXP4"
+ENCODER_FILE_ID = "1IsxKe_N5FThXB8N7NmZHcTlTuZAFvTAw"
+FEATURES_FILE_ID = "1uZmVO_qaDXzhIGFeZK8qnpioFTiJ6W_8"
 
 @st.cache_resource
 def load_models_from_drive():
     """Download and load models from Google Drive"""
-    
-    # Create models directory
     os.makedirs('models', exist_ok=True)
     
     model_path = 'models/model.pkl'
     encoder_path = 'models/encoder.pkl'
     features_path = 'models/features.json'
     
-    # Download if files don't exist
     if not os.path.exists(model_path):
         st.info("🔄 Downloading models from Google Drive (first load only)...")
         
         try:
-            # Download main model
             model_url = f"https://drive.google.com/uc?id={MODEL_FILE_ID}"
             gdown.download(model_url, model_path, quiet=False, fuzzy=True)
             
-            # Download encoder
             encoder_url = f"https://drive.google.com/uc?id={ENCODER_FILE_ID}"
             gdown.download(encoder_url, encoder_path, quiet=False, fuzzy=True)
             
-            # Download features list
             features_url = f"https://drive.google.com/uc?id={FEATURES_FILE_ID}"
             gdown.download(features_url, features_path, quiet=False, fuzzy=True)
             
@@ -160,27 +148,34 @@ def load_models_from_drive():
         except Exception as e:
             st.error(f"❌ Download failed: {str(e)}")
             st.info("Please check: 1) File IDs are correct, 2) Files are shared publicly")
-            return None, None, None
+            return None, None, None, None
     
-    # Load models
     try:
         model = joblib.load(model_path)
         encoder = joblib.load(encoder_path)
         
         with open(features_path, 'r') as f:
-            features = json.load(f)
+            features_data = json.load(f)
         
-        return model, encoder, features
+        # Extract feature names from the JSON structure
+        if isinstance(features_data, dict):
+            feature_names = features_data.get('feature_names', [])
+        elif isinstance(features_data, list):
+            feature_names = features_data
+        else:
+            feature_names = []
+        
+        return model, encoder, feature_names, features_data
         
     except Exception as e:
         st.error(f"❌ Error loading models: {str(e)}")
-        return None, None, None
+        return None, None, None, None
 
 # Load models at startup
 st.sidebar.info("📦 Loading models...")
-model, encoder, expected_features = load_models_from_drive()
+model, encoder, expected_features, features_data = load_models_from_drive()
 
-if model is not None and encoder is not None and expected_features is not None:
+if model is not None:
     st.sidebar.success("✅ Models ready!")
     MODEL_READY = True
 else:
@@ -189,13 +184,20 @@ else:
     expected_features = []
 
 # ==============================================================================
-# PREPROCESSING PIPELINE - FIXED ERROR HANDLING
+# PREPROCESSING PIPELINE
 # ==============================================================================
 class PreprocessingPipeline:
     """Preprocessing pipeline matching Phase 4 transformations"""
     
     def __init__(self, expected_features, scaler=None, imputer=None):
-        self.expected_features = expected_features if expected_features else []
+        # Ensure expected_features is a list
+        if isinstance(expected_features, dict):
+            self.expected_features = expected_features.get('feature_names', [])
+        elif isinstance(expected_features, list):
+            self.expected_features = expected_features
+        else:
+            self.expected_features = []
+        
         self.scaler = scaler
         self.imputer = imputer
     
@@ -212,19 +214,17 @@ class PreprocessingPipeline:
         return df_copy
     
     def ensure_feature_order(self, df):
-        """Ensure features are in the same order as training data - FIXED"""
-        if not self.expected_features:
-            st.error("❌ Expected features list is empty. Models may not have loaded correctly.")
-            return df
+        """Ensure features are in the same order as training data"""
+        feature_list = list(self.expected_features) if self.expected_features else []
         
-        # Make sure all expected features exist
-        for feature in self.expected_features:
+        # Add missing features with default value
+        for feature in feature_list:
             if feature not in df.columns:
                 df[feature] = 0
         
         # Return DataFrame with features in correct order
         try:
-            return df[self.expected_features]
+            return df[feature_list]
         except Exception as e:
             st.error(f"❌ Error in feature ordering: {str(e)}")
             return df
@@ -244,7 +244,7 @@ class PreprocessingPipeline:
             return pd.DataFrame([input_data])
 
 # ==============================================================================
-# PREDICTION ENGINE - FIXED ERROR HANDLING
+# PREDICTION ENGINE
 # ==============================================================================
 class PredictionEngine:
     """Prediction engine integrating model, encoder, and preprocessing"""
@@ -330,7 +330,6 @@ class StreamlitRecommendationEngine:
         """Generate 10 personalized recommendations"""
         recommendations = []
         
-        # Household level (4)
         for i, rec_text in enumerate(self.default_recommendations['household_level'][:4]):
             recommendations.append({
                 'rank': i + 1,
@@ -342,7 +341,6 @@ class StreamlitRecommendationEngine:
                 'color': self.recommendation_structure['household_level']['color']
             })
         
-        # NGO interventions (3)
         for i, rec_text in enumerate(self.default_recommendations['ngo_interventions'][:3]):
             recommendations.append({
                 'rank': i + 5,
@@ -354,7 +352,6 @@ class StreamlitRecommendationEngine:
                 'color': self.recommendation_structure['ngo_interventions']['color']
             })
         
-        # Government policies (3)
         for i, rec_text in enumerate(self.default_recommendations['government_policies'][:3]):
             recommendations.append({
                 'rank': i + 8,
@@ -381,7 +378,6 @@ class StreamlitRecommendationEngine:
                 grouped[stakeholder].append(rec)
         return grouped
 
-# Initialize recommendation engine
 if MODEL_READY:
     recommendation_engine = StreamlitRecommendationEngine()
     RECOMMENDATIONS_READY = True
@@ -394,7 +390,6 @@ else:
 # ==============================================================================
 def plot_feature_importance_shap(shap_data, top_n=10):
     """Create SHAP feature importance bar chart"""
-    import matplotlib.pyplot as plt
     if shap_data is None or len(shap_data) == 0:
         return None
     
@@ -414,7 +409,6 @@ def plot_feature_importance_shap(shap_data, top_n=10):
 
 def plot_prediction_confidence(probabilities, predicted_class):
     """Create prediction confidence visualization"""
-    import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(8, 6))
     
     classes = list(probabilities.keys())
@@ -438,7 +432,6 @@ def plot_prediction_confidence(probabilities, predicted_class):
 
 def plot_stakeholder_distribution(recommendations):
     """Create stakeholder distribution pie chart"""
-    import matplotlib.pyplot as plt
     if not recommendations:
         return None
     
@@ -466,7 +459,6 @@ def plot_stakeholder_distribution(recommendations):
 
 def plot_fairness_metrics(fairness_data):
     """Create fairness metrics dashboard"""
-    import matplotlib.pyplot as plt
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
     if fairness_data:
@@ -521,7 +513,6 @@ with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=200)
     st.title("🇺🇬 Navigation")
     
-    # App pages
     pages = {
         "🏠 Home": "home",
         "📝 Manual Prediction": "manual",
@@ -535,7 +526,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Model info
     st.subheader("📦 Model Info")
     if MODEL_READY:
         st.info(f"""
@@ -552,7 +542,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Quick stats
     st.subheader("📊 Quick Stats")
     st.metric("Predictions Today", "0")
     st.metric("Avg Confidence", "0.85")
@@ -565,7 +554,6 @@ if page_key == "home":
     st.title("🇺🇬 Uganda Household Poverty Prediction")
     st.markdown("*AI-Powered Poverty Level Classification with Personalized Recommendations*")
     
-    # Hero section
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown(f"""
@@ -583,7 +571,6 @@ if page_key == "home":
     
     st.markdown("---")
     
-    # Key features
     st.subheader("✨ Key Features")
     col1, col2, col3, col4 = st.columns(4)
     
@@ -621,7 +608,6 @@ if page_key == "home":
     
     st.markdown("---")
     
-    # Quick start guide
     st.subheader("🚀 Quick Start Guide")
     
     tab1, tab2, tab3 = st.tabs(["For Individuals", "For NGOs", "For Government"])
@@ -677,7 +663,6 @@ if page_key == "home":
     
     st.markdown("---")
     
-    # Model performance
     st.subheader("📊 Model Performance")
     col1, col2, col3, col4 = st.columns(4)
     
@@ -703,7 +688,6 @@ elif page_key == "manual":
         st.error("❌ Models not loaded. Please check Google Drive sharing settings.")
         st.stop()
     
-    # Input form
     st.subheader("📋 Household Information")
     
     col1, col2 = st.columns(2)
@@ -720,10 +704,8 @@ elif page_key == "manual":
         electricity = st.checkbox("⚡ Has Electricity", value=True)
         area = st.selectbox("📍 Area", ["Urban", "Rural"])
     
-    # Predict button
     if st.button("🔮 Predict Poverty Level", type="primary", use_container_width=True):
         with st.spinner("🔄 Analyzing household data..."):
-            # Create feature vector
             input_data = {
                 'welfare': welfare,
                 'hsize': hsize,
@@ -735,12 +717,10 @@ elif page_key == "manual":
                 'area': area
             }
             
-            # Fill missing features with defaults
             for feat in expected_features:
                 if feat not in input_data:
                     input_data[feat] = 0
             
-            # Make prediction using prediction engine
             result = prediction_engine.predict(input_data, return_proba=True)
             
             if result['status'] == 'success':
@@ -748,10 +728,8 @@ elif page_key == "manual":
                 confidence = result['prediction']['confidence']
                 probabilities = result['prediction'].get('probabilities')
                 
-                # Display results
                 st.success("✅ Prediction Complete!")
                 
-                # Result cards
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -761,7 +739,6 @@ elif page_key == "manual":
                 with col3:
                     st.metric("📊 Model", "Stacking Ensemble")
                 
-                # Probability breakdown
                 if probabilities:
                     st.subheader("📈 Class Probabilities")
                     prob_df = pd.DataFrame({
@@ -770,7 +747,6 @@ elif page_key == "manual":
                     }).sort_values('Probability', ascending=False)
                     st.bar_chart(prob_df.set_index('Class'))
                 
-                # 10 Recommendations using recommendation engine
                 st.subheader("💡 Your 10 Personalized Recommendations")
                 
                 recommendations = recommendation_engine.generate_recommendations(
@@ -779,10 +755,8 @@ elif page_key == "manual":
                     confidence=confidence
                 )
                 
-                # Group by stakeholder
                 grouped = recommendation_engine.get_recommendations_by_stakeholder(recommendations)
                 
-                # Household Level (4)
                 st.markdown("### 🏠 Household Level Actions (4)")
                 for rec in grouped['household_level']:
                     st.markdown(f"""
@@ -792,7 +766,6 @@ elif page_key == "manual":
                     </div>
                     """, unsafe_allow_html=True)
                 
-                # NGO Interventions (3)
                 st.markdown("### 🤝 NGO Interventions (3)")
                 for rec in grouped['ngo_interventions']:
                     st.markdown(f"""
@@ -802,7 +775,6 @@ elif page_key == "manual":
                     </div>
                     """, unsafe_allow_html=True)
                 
-                # Government Policies (3)
                 st.markdown("### 🏛️ Government Policies (3)")
                 for rec in grouped['government_policies']:
                     st.markdown(f"""
@@ -812,7 +784,6 @@ elif page_key == "manual":
                     </div>
                     """, unsafe_allow_html=True)
                 
-                # Download results
                 st.subheader("📥 Download Results")
                 result_data = {
                     'prediction': prediction_class,
@@ -845,7 +816,6 @@ elif page_key == "csv":
         st.error("❌ Models not loaded. Please check Google Drive sharing settings.")
         st.stop()
     
-    # Download template
     st.subheader("📥 Step 1: Download Template")
     
     template_df = pd.DataFrame({
@@ -869,28 +839,22 @@ elif page_key == "csv":
     
     st.markdown("---")
     
-    # Upload file
     st.subheader("📤 Step 2: Upload Your Data")
     
     uploaded_file = st.file_uploader("Choose a CSV file", type=['csv'])
     
     if uploaded_file is not None:
         try:
-            # Read uploaded file
             df = pd.read_csv(uploaded_file)
             st.success(f"✅ File uploaded successfully! {len(df)} records found")
             
-            # Show preview
             st.subheader("📋 Data Preview")
             st.dataframe(df.head())
             
-            # Process button
             if st.button("🚀 Process Predictions", type="primary", use_container_width=True):
                 with st.spinner("🔄 Processing all records..."):
-                    # Process each row
                     results = []
                     for idx, row in df.iterrows():
-                        # Create feature vector
                         input_data = {}
                         for feat in expected_features:
                             if feat in row:
@@ -898,7 +862,6 @@ elif page_key == "csv":
                             else:
                                 input_data[feat] = 0
                         
-                        # Make prediction
                         result = prediction_engine.predict(input_data, return_proba=True)
                         
                         if result['status'] == 'success':
@@ -908,13 +871,11 @@ elif page_key == "csv":
                                 'confidence': result['prediction']['confidence']
                             })
                     
-                    # Display results
                     st.success(f"✅ Processing complete! {len(results)} predictions generated")
                     
                     results_df = pd.DataFrame(results)
                     st.dataframe(results_df)
                     
-                    # Download results
                     results_csv = results_df.to_csv(index=False)
                     st.download_button(
                         "📥 Download Results (CSV)",
@@ -932,7 +893,6 @@ elif page_key == "analytics":
     st.title("📈 Analytics Dashboard")
     st.markdown("*View prediction insights, SHAP visualizations, and fairness metrics*")
     
-    # Developer Credits
     st.markdown("""
     <div style="background-color: #ECF0F1; padding: 15px; border-radius: 10px; border-left: 5px solid #D90000; margin: 20px 0;">
         <h4>👨‍💻 Developed By:</h4>
@@ -942,7 +902,6 @@ elif page_key == "analytics":
     </div>
     """, unsafe_allow_html=True)
     
-    # SHAP Feature Importance
     st.subheader("🔍 SHAP Feature Importance")
     try:
         shap_path = "/content/drive/MyDrive/Uganda poverty level/outputs/phase_9/9.1_shap_feature_importance.csv"
@@ -956,7 +915,6 @@ elif page_key == "analytics":
     except:
         st.info("SHAP visualization requires local file access")
     
-    # Fairness Metrics
     st.subheader("⚖️ Fairness Metrics")
     try:
         fairness_path = "/content/drive/MyDrive/Uganda poverty level/outputs/phase_11/11.2_fairness_metrics.json"
@@ -971,7 +929,6 @@ elif page_key == "analytics":
     except:
         st.info("Fairness visualization requires local file access")
     
-    # Model Performance
     st.subheader("📊 Model Performance")
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
