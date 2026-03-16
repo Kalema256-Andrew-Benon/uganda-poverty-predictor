@@ -1,4 +1,3 @@
- 
  # ==============================================================================
 # UGANDA POVERTY PREDICTION WEB APP
 # Phase 13: Streamlit Web App Development
@@ -24,6 +23,8 @@ import json
 import gdown
 from datetime import datetime
 import warnings
+import matplotlib.pyplot as plt
+
 warnings.filterwarnings('ignore')
 
 # ==============================================================================
@@ -55,22 +56,27 @@ UGANDA_COLORS = {
     'dark_gray': '#2C3E50'
 }
 
-# Custom CSS for professional UI
+# Custom CSS for professional UI with better text visibility
 st.markdown(f"""
     <style>
     .main {{
         background-color: {UGANDA_COLORS['white']};
+        color: {UGANDA_COLORS['black']};
     }}
     .stApp {{
         background-color: {UGANDA_COLORS['white']};
-    }}
-    h1, h2, h3 {{
         color: {UGANDA_COLORS['black']};
+    }}
+    h1, h2, h3, h4, h5, h6 {{
+        color: {UGANDA_COLORS['black']} !important;
         font-family: 'Segoe UI', sans-serif;
+    }}
+    p, li, div, span, label {{
+        color: {UGANDA_COLORS['black']} !important;
     }}
     .stButton>button {{
         background-color: {UGANDA_COLORS['red']};
-        color: white;
+        color: white !important;
         border: none;
         border-radius: 5px;
         padding: 10px 24px;
@@ -78,7 +84,7 @@ st.markdown(f"""
     }}
     .stButton>button:hover {{
         background-color: {UGANDA_COLORS['black']};
-        color: {UGANDA_COLORS['yellow']};
+        color: {UGANDA_COLORS['yellow']} !important;
     }}
     .metric-card {{
         background-color: {UGANDA_COLORS['light_gray']};
@@ -86,6 +92,7 @@ st.markdown(f"""
         border-radius: 10px;
         border-left: 5px solid {UGANDA_COLORS['red']};
         margin: 10px 0;
+        color: {UGANDA_COLORS['black']} !important;
     }}
     .recommendation-card {{
         background-color: {UGANDA_COLORS['white']};
@@ -93,6 +100,7 @@ st.markdown(f"""
         border-radius: 8px;
         border: 1px solid {UGANDA_COLORS['gray']};
         margin: 10px 0;
+        color: {UGANDA_COLORS['black']} !important;
     }}
     .high-priority {{
         border-left: 4px solid {UGANDA_COLORS['red']};
@@ -102,6 +110,9 @@ st.markdown(f"""
     }}
     .low-priority {{
         border-left: 4px solid {UGANDA_COLORS['green']};
+    }}
+    .stAlert, .stSuccess, .stError, .stWarning, .stInfo {{
+        color: {UGANDA_COLORS['black']} !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -182,7 +193,7 @@ class PreprocessingPipeline:
     """Preprocessing pipeline matching Phase 4 transformations"""
     
     def __init__(self, expected_features, scaler=None, imputer=None):
-        self.expected_features = expected_features
+        self.expected_features = expected_features if isinstance(expected_features, list) else []
         self.scaler = scaler
         self.imputer = imputer
     
@@ -200,10 +211,16 @@ class PreprocessingPipeline:
     
     def ensure_feature_order(self, df):
         """Ensure features are in the same order as training data"""
-        for feature in self.expected_features:
+        # Make sure expected_features is a list
+        feature_list = list(self.expected_features) if self.expected_features else []
+        
+        # Add missing features with default value
+        for feature in feature_list:
             if feature not in df.columns:
                 df[feature] = 0
-        return df[self.expected_features]
+        
+        # Return DataFrame with features in correct order using list indexing
+        return df[feature_list]
     
     def transform(self, input_data):
         """Complete preprocessing pipeline"""
@@ -362,7 +379,6 @@ else:
 # ==============================================================================
 def plot_feature_importance_shap(shap_data, top_n=10):
     """Create SHAP feature importance bar chart"""
-    import matplotlib.pyplot as plt
     if shap_data is None or len(shap_data) == 0:
         return None
     
@@ -372,8 +388,8 @@ def plot_feature_importance_shap(shap_data, top_n=10):
     colors = plt.cm.viridis(np.linspace(0.3, 0.9, len(top_features)))
     ax.barh(top_features['feature'][::-1], top_features['mean_abs_shap_value'][::-1], 
             color=colors, edgecolor='black')
-    ax.set_xlabel('Mean |SHAP| Value', fontweight='bold')
-    ax.set_title('Top Features by SHAP Importance', fontweight='bold', fontsize=14)
+    ax.set_xlabel('Mean |SHAP| Value', fontweight='bold', color='black')
+    ax.set_title('Top Features by SHAP Importance', fontweight='bold', fontsize=14, color='black')
     ax.grid(axis='x', alpha=0.3)
     ax.invert_yaxis()
     plt.tight_layout()
@@ -382,7 +398,6 @@ def plot_feature_importance_shap(shap_data, top_n=10):
 
 def plot_prediction_confidence(probabilities, predicted_class):
     """Create prediction confidence visualization"""
-    import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(8, 6))
     
     classes = list(probabilities.keys())
@@ -390,8 +405,8 @@ def plot_prediction_confidence(probabilities, predicted_class):
     colors = ['#27AE60' if c == predicted_class else '#ECF0F1' for c in classes]
     
     bars = ax.bar(classes, probs, color=colors, edgecolor='black', linewidth=2)
-    ax.set_ylabel('Probability', fontweight='bold')
-    ax.set_title('Prediction Confidence by Class', fontweight='bold', fontsize=14)
+    ax.set_ylabel('Probability', fontweight='bold', color='black')
+    ax.set_title('Prediction Confidence by Class', fontweight='bold', fontsize=14, color='black')
     ax.set_ylim(0, 1.0)
     ax.axhline(y=0.33, color='gray', linestyle='--', alpha=0.5, label='Random Chance')
     ax.legend()
@@ -399,14 +414,13 @@ def plot_prediction_confidence(probabilities, predicted_class):
     
     for bar, prob in zip(bars, probs):
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.02, 
-                f'{prob:.2f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+                f'{prob:.2f}', ha='center', va='bottom', fontsize=10, fontweight='bold', color='black')
     
     plt.tight_layout()
     return fig
 
 def plot_stakeholder_distribution(recommendations):
     """Create stakeholder distribution pie chart"""
-    import matplotlib.pyplot as plt
     if not recommendations:
         return None
     
@@ -427,22 +441,21 @@ def plot_stakeholder_distribution(recommendations):
     
     ax.pie(counts, labels=labels, colors=colors, autopct='%1.1f%%', 
            startangle=90, explode=(0.05, 0.05, 0.05))
-    ax.set_title('Recommendations by Stakeholder Group', fontweight='bold', fontsize=14)
+    ax.set_title('Recommendations by Stakeholder Group', fontweight='bold', fontsize=14, color='black')
     plt.tight_layout()
     
     return fig
 
 def plot_fairness_metrics(fairness_data):
     """Create fairness metrics dashboard"""
-    import matplotlib.pyplot as plt
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
     if fairness_data:
         status = fairness_data.get('overall_fairness_status', 'UNKNOWN')
         status_color = '#27AE60' if 'PASS' in status else '#E74C3C'
         axes[0, 0].bar(['Fairness Status'], [1], color=status_color)
-        axes[0, 0].text(0, 0.5, status, ha='center', va='center', fontsize=14, fontweight='bold')
-        axes[0, 0].set_title('Overall Fairness Status', fontweight='bold')
+        axes[0, 0].text(0, 0.5, status, ha='center', va='center', fontsize=14, fontweight='bold', color='black')
+        axes[0, 0].set_title('Overall Fairness Status', fontweight='bold', color='black')
         
         attributes = fairness_data.get('attributes_tested', [])
         axes[0, 1].barh(['Region', 'Gender', 'Area'], 
@@ -450,13 +463,13 @@ def plot_fairness_metrics(fairness_data):
                         1 if 'gender' in str(attributes).lower() else 0,
                         1 if 'area' in str(attributes).lower() else 0],
                        color='#3498DB')
-        axes[0, 1].set_title('Attributes Tested', fontweight='bold')
+        axes[0, 1].set_title('Attributes Tested', fontweight='bold', color='black')
         
         passed = fairness_data.get('validation_passed', False)
         axes[1, 0].bar(['Validation'], [1], color='#27AE60' if passed else '#E74C3C')
         axes[1, 0].text(0, 0.5, '✅ PASS' if passed else '⚠️ REVIEW', 
-                       ha='center', va='center', fontsize=14, fontweight='bold')
-        axes[1, 0].set_title('Validation Status', fontweight='bold')
+                       ha='center', va='center', fontsize=14, fontweight='bold', color='black')
+        axes[1, 0].set_title('Validation Status', fontweight='bold', color='black')
         
         axes[1, 1].axis('off')
         summary = f"""
@@ -478,7 +491,7 @@ def plot_fairness_metrics(fairness_data):
         plt.tight_layout()
         return fig
     else:
-        axes[0, 0].text(0.5, 0.5, 'No fairness data available', ha='center', va='center')
+        axes[0, 0].text(0.5, 0.5, 'No fairness data available', ha='center', va='center', color='black')
         plt.tight_layout()
         return fig
 
@@ -507,9 +520,12 @@ with st.sidebar:
     st.subheader("📦 Model Info")
     if MODEL_READY:
         st.info(f"""
-        **Model:** Stacking Ensemble\n
-        **Accuracy:** 100.00%\n
-        **Features:** {len(expected_features)}\n
+        **Model:** Stacking Ensemble
+        
+        **Accuracy:** 100.00%
+        
+        **Features:** {len(expected_features)}
+        
         **Classes:** poor, middle class, rich
         """)
     else:
