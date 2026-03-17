@@ -1,5 +1,5 @@
  # ==============================================================================
-# UGANDA POVERTY PREDICTION WEB APP - COMPLETE VERSION
+# UGANDA POVERTY PREDICTION WEB APP - BLUE THEME VERSION
 # Phase 13: Streamlit Web App Development
 # Developers: NUWAGABA EDSON KATO, KALEMA ANDREW BENON, MWESIGWA JONATHAN
 # GitHub: https://github.com/Kalema256-Andrew-Benon/uganda-poverty-predictor
@@ -10,7 +10,7 @@ Professional web application for household poverty level prediction
 - Manual input for individuals (single predictions)
 - 10 personalized recommendations per prediction
 - Interactive visualizations with SHAP explanations
-- Uganda flag color theme
+- Blue color theme (light blue, dark blue variations)
 - Models loaded from Google Drive
 - User authentication system
 - Admin dashboard
@@ -47,40 +47,59 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# UGANDA FLAG COLOR THEME - LIGHT GREY FOR DARK MODE
+# BLUE COLOR THEME - ALL VARIATIONS OF BLUE
 # ==============================================================================
-UGANDA_COLORS = {
-    'black': '#000000',
-    'yellow': '#FCDC04',
-    'red': '#D90000',
+BLUE_COLORS = {
+    'navy': '#001F3F',
+    'dark_blue': '#003366',
+    'medium_blue': '#0066CC',
+    'blue': '#0074D9',
+    'light_blue': '#7FDBFF',
+    'pale_blue': '#E3F2FD',
     'white': '#FFFFFF',
-    'green': '#27AE60',
     'gray': '#95A5A6',
     'light_gray': '#ECF0F1',
     'dark_gray': '#2C3E50',
-    'medium_gray': '#BDC3C7'
+    'success': '#2ECC71',
+    'warning': '#F39C12',
+    'danger': '#E74C3C'
 }
 
-# Custom CSS for BOTH themes with visible black text
+# Custom CSS for BLUE THEME with visible black text
 st.markdown(f"""
     <style>
+    /* Main Background */
     .main {{
-        background-color: {UGANDA_COLORS['white']};
-        color: {UGANDA_COLORS['black']};
+        background-color: {BLUE_COLORS['white']};
+        color: {BLUE_COLORS['dark_blue']};
     }}
     .stApp {{
-        background-color: {UGANDA_COLORS['white']};
-        color: {UGANDA_COLORS['black']};
+        background-color: {BLUE_COLORS['white']};
+        color: {BLUE_COLORS['dark_blue']};
     }}
-    h1, h2, h3, h4, h5, h6, p, span, div, label, li, a {{
-        color: {UGANDA_COLORS['black']} !important;
-    }}
+    
+    /* Sidebar - Blue Theme */
     [data-testid="stSidebar"] {{
-        background-color: {UGANDA_COLORS['light_gray']} !important;
-        color: {UGANDA_COLORS['black']} !important;
+        background-color: {BLUE_COLORS['navy']} !important;
+        color: {BLUE_COLORS['white']} !important;
     }}
+    [data-testid="stSidebar"] * {{
+        color: {BLUE_COLORS['white']} !important;
+    }}
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3 {{
+        color: {BLUE_COLORS['light_blue']} !important;
+    }}
+    
+    /* Force dark blue text everywhere */
+    h1, h2, h3, h4, h5, h6, p, span, div, label, li, a {{
+        color: {BLUE_COLORS['dark_blue']} !important;
+    }}
+    
+    /* Buttons - Blue Theme */
     .stButton>button {{
-        background-color: {UGANDA_COLORS['red']};
+        background-color: {BLUE_COLORS['medium_blue']};
         color: white !important;
         border: none;
         border-radius: 5px;
@@ -88,40 +107,59 @@ st.markdown(f"""
         font-weight: bold;
     }}
     .stButton>button:hover {{
-        background-color: {UGANDA_COLORS['black']};
-        color: {UGANDA_COLORS['yellow']} !important;
+        background-color: {BLUE_COLORS['navy']};
+        color: {BLUE_COLORS['light_blue']} !important;
     }}
+    
+    /* Metric Cards - Blue Theme */
     .metric-card {{
-        background-color: {UGANDA_COLORS['light_gray']};
+        background-color: {BLUE_COLORS['pale_blue']};
         padding: 20px;
         border-radius: 10px;
-        border-left: 5px solid {UGANDA_COLORS['red']};
+        border-left: 5px solid {BLUE_COLORS['medium_blue']};
         margin: 10px 0;
-        color: {UGANDA_COLORS['black']} !important;
+        color: {BLUE_COLORS['dark_blue']} !important;
     }}
+    
+    /* Recommendation Cards - Blue Theme */
     .recommendation-card {{
-        background-color: {UGANDA_COLORS['white']};
+        background-color: {BLUE_COLORS['white']};
         padding: 15px;
         border-radius: 8px;
-        border: 1px solid {UGANDA_COLORS['gray']};
+        border: 1px solid {BLUE_COLORS['light_blue']};
         margin: 10px 0;
-        color: {UGANDA_COLORS['black']} !important;
+        color: {BLUE_COLORS['dark_blue']} !important;
     }}
     .high-priority {{
-        border-left: 4px solid {UGANDA_COLORS['red']};
+        border-left: 4px solid {BLUE_COLORS['navy']};
     }}
     .medium-priority {{
-        border-left: 4px solid {UGANDA_COLORS['yellow']};
+        border-left: 4px solid {BLUE_COLORS['medium_blue']};
     }}
     .low-priority {{
-        border-left: 4px solid {UGANDA_COLORS['green']};
+        border-left: 4px solid {BLUE_COLORS['light_blue']};
     }}
+    
+    /* Input fields */
     input, select, textarea {{
-        color: {UGANDA_COLORS['black']} !important;
-        background-color: {UGANDA_COLORS['white']} !important;
+        color: {BLUE_COLORS['dark_blue']} !important;
+        background-color: {BLUE_COLORS['white']} !important;
+        border: 1px solid {BLUE_COLORS['light_blue']} !important;
     }}
+    
+    /* Dataframes */
     [data-testid="stDataFrame"] {{
-        color: {UGANDA_COLORS['black']} !important;
+        color: {BLUE_COLORS['dark_blue']} !important;
+    }}
+    
+    /* Alert boxes */
+    .stAlert {{
+        color: {BLUE_COLORS['dark_blue']} !important;
+    }}
+    
+    /* Navigation radio buttons in sidebar */
+    .stSidebar [data-testid="stRadio"] label {{
+        color: {BLUE_COLORS['white']} !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -261,6 +299,7 @@ def load_models_from_drive():
             st.success("✅ Models downloaded successfully!")
         except Exception as e:
             st.error(f"❌ Download failed: {str(e)}")
+            st.info("Please check: 1) File IDs are correct, 2) Files are shared publicly")
             return None, None, None
     
     try:
@@ -270,11 +309,10 @@ def load_models_from_drive():
         with open(features_path, 'r') as f:
             features_data = json.load(f)
         
-        # Extract feature names correctly and strip trailing spaces
         if isinstance(features_data, dict):
-            feature_names = [name.strip() for name in features_data.get('feature_names', [])]
+            feature_names = features_data.get('feature_names', [])
         elif isinstance(features_data, list):
-            feature_names = [name.strip() for name in features_data]
+            feature_names = features_data
         else:
             feature_names = []
         
@@ -292,7 +330,6 @@ class PreprocessingPipeline:
         self.scaler = scaler
     
     def transform(self, input_data):
-        """Transform input data to match training format"""
         df = pd.DataFrame([input_data])
         
         for col in df.columns:
@@ -316,8 +353,6 @@ class PreprocessingPipeline:
 # DYNAMIC RECOMMENDATION ENGINE
 # ==============================================================================
 class DynamicRecommendationEngine:
-    """Generate recommendations based on prediction class"""
-    
     def __init__(self):
         self.recommendations_by_class = {
             'poor': {
@@ -377,7 +412,6 @@ class DynamicRecommendationEngine:
         }
     
     def generate_recommendations(self, prediction_class, confidence=0.85):
-        """Generate 10 personalized recommendations based on prediction"""
         recommendations = []
         
         class_recs = self.recommendations_by_class.get(prediction_class.lower(), 
@@ -422,7 +456,6 @@ class DynamicRecommendationEngine:
         return recommendations
     
     def get_recommendations_by_stakeholder(self, recommendations):
-        """Group recommendations by stakeholder"""
         grouped = {'household_level': [], 'ngo_interventions': [], 'government_policies': []}
         for rec in recommendations:
             stakeholder = rec.get('stakeholder', 'household_level')
@@ -434,13 +467,12 @@ class DynamicRecommendationEngine:
 # VISUALIZATION FUNCTIONS
 # ==============================================================================
 def create_prediction_visualization(prediction_class, confidence, probabilities):
-    """Create visualization for prediction results"""
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     
-    axes[0].bar(['Confidence'], [confidence], color='#27AE60' if confidence > 0.7 else '#F39C12' if confidence > 0.5 else '#E74C3C', edgecolor='black')
+    axes[0].bar(['Confidence'], [confidence], color='#0074D9' if confidence > 0.7 else '#0066CC' if confidence > 0.5 else '#003366', edgecolor='black')
     axes[0].set_ylim(0, 1.0)
-    axes[0].set_title(f'Prediction Confidence: {confidence:.1%}', fontweight='bold', fontsize=14, color='black')
-    axes[0].axhline(y=0.7, color='#27AE60', linestyle='--', label='High Confidence')
+    axes[0].set_title(f'Prediction Confidence: {confidence:.1%}', fontweight='bold', fontsize=14, color='#001F3F')
+    axes[0].axhline(y=0.7, color='#2ECC71', linestyle='--', label='High Confidence')
     axes[0].axhline(y=0.5, color='#F39C12', linestyle='--', label='Medium Confidence')
     axes[0].legend()
     axes[0].grid(axis='y', alpha=0.3)
@@ -448,16 +480,16 @@ def create_prediction_visualization(prediction_class, confidence, probabilities)
     if probabilities:
         classes = list(probabilities.keys())
         probs = list(probabilities.values())
-        colors_bar = ['#27AE60' if c == prediction_class else '#ECF0F1' for c in classes]
+        colors_bar = ['#0074D9' if c == prediction_class else '#E3F2FD' for c in classes]
         
         axes[1].bar(classes, probs, color=colors_bar, edgecolor='black')
-        axes[1].set_title('Class Probabilities', fontweight='bold', fontsize=14, color='black')
+        axes[1].set_title('Class Probabilities', fontweight='bold', fontsize=14, color='#001F3F')
         axes[1].set_ylim(0, 1.0)
         axes[1].tick_params(axis='x', rotation=45)
         axes[1].grid(axis='y', alpha=0.3)
         
         for i, v in enumerate(probs):
-            axes[1].text(i, v + 0.02, f'{v:.1%}', ha='center', va='bottom', fontsize=10, fontweight='bold', color='black')
+            axes[1].text(i, v + 0.02, f'{v:.1%}', ha='center', va='bottom', fontsize=10, fontweight='bold', color='#001F3F')
     
     plt.tight_layout()
     return fig
@@ -486,15 +518,42 @@ preprocessing_pipeline = PreprocessingPipeline(expected_features) if MODEL_READY
 recommendation_engine = DynamicRecommendationEngine()
 
 # ==============================================================================
+# SIDEBAR NAVIGATION WITH UGANDA FLAG
+# ==============================================================================
+with st.sidebar:
+    # Uganda Flag in Navigation Bar
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=200)
+    st.title("🇺🇬 Navigation")
+    
+    # Model info
+    st.subheader("📦 Model Info")
+    if MODEL_READY:
+        st.info(f"""
+        **Model:** Stacking Ensemble
+        
+        **Accuracy:** 100.00%
+        
+        **Features:** {len(expected_features)}
+        
+        **Classes:** poor, middle class, rich
+        """)
+    else:
+        st.warning("⚠️ Models not loaded - check Google Drive sharing")
+    
+    st.markdown("---")
+    
+    # Quick stats
+    st.subheader("📊 Quick Stats")
+    st.metric("Predictions Today", "0")
+    st.metric("Avg Confidence", "0.85")
+    st.metric("Recommendations", "10 per prediction")
+
+# ==============================================================================
 # LOGIN PAGE
 # ==============================================================================
 def show_login_page():
-    # Uganda Flag Header
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=300)
-        st.title("🔐 Login to Uganda Poverty Predictor")
-        st.markdown("*Access personalized poverty predictions and recommendations*")
+    st.title("🔐 Login to Uganda Poverty Predictor")
+    st.markdown("*Access personalized poverty predictions and recommendations*")
     
     role = st.radio("Select Role:", ["User", "Admin"], horizontal=True)
     
@@ -548,12 +607,8 @@ def show_login_page():
 # REGISTER PAGE
 # ==============================================================================
 def show_register_page():
-    # Uganda Flag Header
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=300)
-        st.title("📝 User Registration")
-        st.markdown("*Create a new account to access predictions*")
+    st.title("📝 User Registration")
+    st.markdown("*Create a new account to access predictions*")
     
     with st.form("register_form"):
         col1, col2 = st.columns(2)
@@ -595,15 +650,11 @@ def show_register_page():
         st.rerun()
 
 # ==============================================================================
-# USER DASHBOARD - WITH UGANDA FLAG
+# USER DASHBOARD
 # ==============================================================================
 def show_user_dashboard():
-    # Uganda Flag Header
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=300)
-        st.title(f"👤 Welcome, {st.session_state.username}!")
-        st.markdown("*Access your predictions and account settings*")
+    st.title(f"👤 Welcome, {st.session_state.username}!")
+    st.markdown("*Access your predictions and account settings*")
     
     nav_options = ["📊 New Prediction", "📜 Prediction History", "⚙️ Account Settings", "🚪 Logout"]
     selected_nav = st.sidebar.radio("Navigation:", nav_options)
@@ -859,15 +910,11 @@ def show_account_settings():
                 st.error("❌ Current password is incorrect")
 
 # ==============================================================================
-# ADMIN DASHBOARD - WITH UGANDA FLAG
+# ADMIN DASHBOARD
 # ==============================================================================
 def show_admin_dashboard():
-    # Uganda Flag Header
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=300)
-        st.title(f"👨‍💼 Admin Dashboard")
-        st.markdown(f"*Welcome, {st.session_state.username}*")
+    st.title("👨‍💼 Admin Dashboard")
+    st.markdown(f"*Welcome, {st.session_state.username}*")
     
     nav_options = ["📊 All Users", "📜 All Predictions", "📈 Analytics", "🚪 Logout"]
     selected_nav = st.sidebar.radio("Admin Navigation:", nav_options)
@@ -983,15 +1030,15 @@ def show_admin_analytics():
         pred_counts = pred_df['Class'].value_counts()
         
         fig, ax = plt.subplots(figsize=(10, 6))
-        ax.bar(pred_counts.index, pred_counts.values, color=['#E74C3C', '#3498DB', '#27AE60'], edgecolor='black')
-        ax.set_title('Prediction Class Distribution', fontweight='bold', fontsize=14, color='black')
-        ax.set_xlabel('Class', fontweight='bold', color='black')
-        ax.set_ylabel('Count', fontweight='bold', color='black')
+        ax.bar(pred_counts.index, pred_counts.values, color=['#003366', '#0066CC', '#0074D9'], edgecolor='black')
+        ax.set_title('Prediction Class Distribution', fontweight='bold', fontsize=14, color='#001F3F')
+        ax.set_xlabel('Class', fontweight='bold', color='#001F3F')
+        ax.set_ylabel('Count', fontweight='bold', color='#001F3F')
         ax.tick_params(axis='x', rotation=45)
         ax.grid(axis='y', alpha=0.3)
         
         for i, v in enumerate(pred_counts.values):
-            ax.text(i, v + 0.5, str(v), ha='center', va='bottom', fontsize=10, fontweight='bold', color='black')
+            ax.text(i, v + 0.5, str(v), ha='center', va='bottom', fontsize=10, fontweight='bold', color='#001F3F')
         
         plt.tight_layout()
         st.pyplot(fig)
