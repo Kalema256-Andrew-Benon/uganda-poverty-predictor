@@ -4,6 +4,17 @@
 # Developers: NUWAGABA EDSON KATO, KALEMA ANDREW BENON, MWESIGWA JONATHAN
 # GitHub: https://github.com/Kalema256-Andrew-Benon/uganda-poverty-predictor
 # ==============================================================================
+"""
+Professional web application for household poverty level prediction
+- CSV upload for NGOs (batch predictions)
+- Manual input for individuals (single predictions)
+- 10 personalized recommendations per prediction
+- Interactive visualizations with SHAP explanations
+- Uganda flag color theme
+- Models loaded from Google Drive
+- User authentication system
+- Admin dashboard
+"""
 
 import streamlit as st
 import pandas as pd
@@ -13,12 +24,10 @@ import os
 import json
 import gdown
 import hashlib
-import base64
 from datetime import datetime
 import warnings
 import matplotlib.pyplot as plt
 import io
-from PIL import Image
 
 warnings.filterwarnings('ignore')
 
@@ -38,7 +47,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# THEME CONFIGURATION - LIGHT GREY FOR DARK MODE
+# UGANDA FLAG COLOR THEME - LIGHT GREY FOR DARK MODE
 # ==============================================================================
 UGANDA_COLORS = {
     'black': '#000000',
@@ -49,36 +58,27 @@ UGANDA_COLORS = {
     'gray': '#95A5A6',
     'light_gray': '#ECF0F1',
     'dark_gray': '#2C3E50',
-    'medium_gray': '#BDC3C7'  # Light grey for dark theme background
+    'medium_gray': '#BDC3C7'
 }
 
 # Custom CSS for BOTH themes with visible black text
 st.markdown(f"""
     <style>
-    /* Light Theme */
-    .stApp[data-theme="light"] {{
+    .main {{
         background-color: {UGANDA_COLORS['white']};
         color: {UGANDA_COLORS['black']};
     }}
-    
-    /* Dark Theme - Light Grey Background */
-    .stApp[data-theme="dark"] {{
-        background-color: {UGANDA_COLORS['medium_gray']} !important;
-        color: {UGANDA_COLORS['black']} !important;
+    .stApp {{
+        background-color: {UGANDA_COLORS['white']};
+        color: {UGANDA_COLORS['black']};
     }}
-    
-    /* Force black text everywhere */
     h1, h2, h3, h4, h5, h6, p, span, div, label, li, a {{
         color: {UGANDA_COLORS['black']} !important;
     }}
-    
-    /* Sidebar */
     [data-testid="stSidebar"] {{
         background-color: {UGANDA_COLORS['light_gray']} !important;
         color: {UGANDA_COLORS['black']} !important;
     }}
-    
-    /* Buttons */
     .stButton>button {{
         background-color: {UGANDA_COLORS['red']};
         color: white !important;
@@ -91,8 +91,6 @@ st.markdown(f"""
         background-color: {UGANDA_COLORS['black']};
         color: {UGANDA_COLORS['yellow']} !important;
     }}
-    
-    /* Metric Cards */
     .metric-card {{
         background-color: {UGANDA_COLORS['light_gray']};
         padding: 20px;
@@ -101,8 +99,6 @@ st.markdown(f"""
         margin: 10px 0;
         color: {UGANDA_COLORS['black']} !important;
     }}
-    
-    /* Recommendation Cards */
     .recommendation-card {{
         background-color: {UGANDA_COLORS['white']};
         padding: 15px;
@@ -120,14 +116,10 @@ st.markdown(f"""
     .low-priority {{
         border-left: 4px solid {UGANDA_COLORS['green']};
     }}
-    
-    /* Input fields */
     input, select, textarea {{
         color: {UGANDA_COLORS['black']} !important;
         background-color: {UGANDA_COLORS['white']} !important;
     }}
-    
-    /* Dataframes */
     [data-testid="stDataFrame"] {{
         color: {UGANDA_COLORS['black']} !important;
     }}
@@ -145,7 +137,6 @@ def load_user_database():
         with open(USER_DB_PATH, 'r') as f:
             return json.load(f)
     else:
-        # Initialize with test accounts
         default_users = {
             "users": {
                 "user1": {
@@ -279,11 +270,11 @@ def load_models_from_drive():
         with open(features_path, 'r') as f:
             features_data = json.load(f)
         
-        # Extract feature names correctly
+        # Extract feature names correctly and strip trailing spaces
         if isinstance(features_data, dict):
-            feature_names = features_data.get('feature_names', [])
+            feature_names = [name.strip() for name in features_data.get('feature_names', [])]
         elif isinstance(features_data, list):
-            feature_names = features_data
+            feature_names = [name.strip() for name in features_data]
         else:
             feature_names = []
         
@@ -304,7 +295,6 @@ class PreprocessingPipeline:
         """Transform input data to match training format"""
         df = pd.DataFrame([input_data])
         
-        # Handle missing values
         for col in df.columns:
             if df[col].isnull().any():
                 if df[col].dtype in ['int64', 'float64']:
@@ -312,12 +302,10 @@ class PreprocessingPipeline:
                 else:
                     df[col].fillna('Unknown', inplace=True)
         
-        # Add missing features with default value
         for feature in self.expected_features:
             if feature not in df.columns:
                 df[feature] = 0
         
-        # Ensure correct order - convert to list first
         feature_list = list(self.expected_features) if self.expected_features else []
         if feature_list:
             df = df[feature_list]
@@ -392,11 +380,9 @@ class DynamicRecommendationEngine:
         """Generate 10 personalized recommendations based on prediction"""
         recommendations = []
         
-        # Get recommendations for this prediction class
         class_recs = self.recommendations_by_class.get(prediction_class.lower(), 
                                                         self.recommendations_by_class['middle class'])
         
-        # Household level (4)
         for i, rec_text in enumerate(class_recs['household_level'][:4]):
             recommendations.append({
                 'rank': i + 1,
@@ -408,7 +394,6 @@ class DynamicRecommendationEngine:
                 'prediction_class': prediction_class
             })
         
-        # NGO interventions (3)
         for i, rec_text in enumerate(class_recs['ngo_interventions'][:3]):
             recommendations.append({
                 'rank': i + 5,
@@ -420,7 +405,6 @@ class DynamicRecommendationEngine:
                 'prediction_class': prediction_class
             })
         
-        # Government policies (3)
         for i, rec_text in enumerate(class_recs['government_policies'][:3]):
             recommendations.append({
                 'rank': i + 8,
@@ -453,10 +437,6 @@ def create_prediction_visualization(prediction_class, confidence, probabilities)
     """Create visualization for prediction results"""
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     
-    # Confidence gauge
-    colors = ['#E74C3C', '#F39C12', '#27AE60']
-    thresholds = [0.33, 0.66, 1.0]
-    
     axes[0].bar(['Confidence'], [confidence], color='#27AE60' if confidence > 0.7 else '#F39C12' if confidence > 0.5 else '#E74C3C', edgecolor='black')
     axes[0].set_ylim(0, 1.0)
     axes[0].set_title(f'Prediction Confidence: {confidence:.1%}', fontweight='bold', fontsize=14, color='black')
@@ -465,7 +445,6 @@ def create_prediction_visualization(prediction_class, confidence, probabilities)
     axes[0].legend()
     axes[0].grid(axis='y', alpha=0.3)
     
-    # Class probabilities
     if probabilities:
         classes = list(probabilities.keys())
         probs = list(probabilities.values())
@@ -503,7 +482,6 @@ if 'show_password' not in st.session_state:
 model, encoder, expected_features = load_models_from_drive()
 MODEL_READY = model is not None
 
-# Initialize engines
 preprocessing_pipeline = PreprocessingPipeline(expected_features) if MODEL_READY else None
 recommendation_engine = DynamicRecommendationEngine()
 
@@ -511,10 +489,13 @@ recommendation_engine = DynamicRecommendationEngine()
 # LOGIN PAGE
 # ==============================================================================
 def show_login_page():
-    st.title("🔐 Login to Uganda Poverty Predictor")
-    st.markdown("*Access personalized poverty predictions and recommendations*")
+    # Uganda Flag Header
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=300)
+        st.title("🔐 Login to Uganda Poverty Predictor")
+        st.markdown("*Access personalized poverty predictions and recommendations*")
     
-    # Role selection
     role = st.radio("Select Role:", ["User", "Admin"], horizontal=True)
     
     with st.form("login_form"):
@@ -545,7 +526,6 @@ def show_login_page():
                 else:
                     st.error("❌ Invalid username or password")
     
-    # Register button
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
@@ -553,7 +533,6 @@ def show_login_page():
             st.session_state.page = 'register'
             st.rerun()
     
-    # Test accounts info
     with st.expander("📋 Test Accounts (Click to view)"):
         st.markdown("""
         **User Account:**
@@ -569,8 +548,12 @@ def show_login_page():
 # REGISTER PAGE
 # ==============================================================================
 def show_register_page():
-    st.title("📝 User Registration")
-    st.markdown("*Create a new account to access predictions*")
+    # Uganda Flag Header
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=300)
+        st.title("📝 User Registration")
+        st.markdown("*Create a new account to access predictions*")
     
     with st.form("register_form"):
         col1, col2 = st.columns(2)
@@ -607,19 +590,21 @@ def show_register_page():
                 else:
                     st.error(f"❌ {message}")
     
-    # Back to login
     if st.button("← Back to Login"):
         st.session_state.page = 'login'
         st.rerun()
 
 # ==============================================================================
-# USER DASHBOARD
+# USER DASHBOARD - WITH UGANDA FLAG
 # ==============================================================================
 def show_user_dashboard():
-    st.title(f"👤 Welcome, {st.session_state.username}!")
-    st.markdown("*Access your predictions and account settings*")
+    # Uganda Flag Header
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=300)
+        st.title(f"👤 Welcome, {st.session_state.username}!")
+        st.markdown("*Access your predictions and account settings*")
     
-    # Navigation
     nav_options = ["📊 New Prediction", "📜 Prediction History", "⚙️ Account Settings", "🚪 Logout"]
     selected_nav = st.sidebar.radio("Navigation:", nav_options)
     
@@ -629,13 +614,10 @@ def show_user_dashboard():
         st.session_state.role = None
         st.session_state.page = 'login'
         st.rerun()
-    
     elif selected_nav == "📊 New Prediction":
         show_prediction_page()
-    
     elif selected_nav == "📜 Prediction History":
         show_user_history()
-    
     elif selected_nav == "⚙️ Account Settings":
         show_account_settings()
 
@@ -650,15 +632,6 @@ def show_prediction_page():
         st.error("❌ Models not loaded. Please check Google Drive sharing settings.")
         return
     
-    # Model selection
-    st.subheader("🤖 Select Model")
-    model_options = {
-        'Stacking Ensemble': model,
-        # Add more models here if available
-    }
-    selected_model_name = st.selectbox("Choose prediction model:", list(model_options.keys()))
-    
-    # Input form
     st.subheader("📋 Household Information")
     
     col1, col2 = st.columns(2)
@@ -677,12 +650,9 @@ def show_prediction_page():
     
     if st.button("🔮 Predict Poverty Level", type="primary", use_container_width=True):
         with st.spinner("🔄 Analyzing household data..."):
-            # Create feature vector with ALL required features
             input_data = {}
             
-            # Add all features from expected_features with defaults
             for feat in expected_features:
-                # Map basic inputs to feature names
                 if 'welfare' in feat.lower():
                     input_data[feat] = welfare
                 elif 'hsize' in feat.lower():
@@ -692,7 +662,7 @@ def show_prediction_page():
                 elif 'cpexp30' in feat.lower():
                     input_data[feat] = cpexp30
                 elif 'education' in feat.lower():
-                    input_data[feat] = 0  # Would need encoding
+                    input_data[feat] = 0
                 elif 'employment' in feat.lower():
                     input_data[feat] = 0
                 elif 'electricity' in feat.lower():
@@ -702,14 +672,11 @@ def show_prediction_page():
                 else:
                     input_data[feat] = 0
             
-            # Preprocess
             X_processed = preprocessing_pipeline.transform(input_data)
             
-            # Make prediction
             prediction_encoded = model.predict(X_processed)[0]
             prediction_class = encoder.inverse_transform([prediction_encoded])[0]
             
-            # Get probabilities
             if hasattr(model, 'predict_proba'):
                 proba = model.predict_proba(X_processed)[0]
                 probabilities = dict(zip(encoder.classes_, proba))
@@ -718,19 +685,15 @@ def show_prediction_page():
                 probabilities = None
                 confidence = 0.85
             
-            # Generate DYNAMIC recommendations based on prediction
             recommendations = recommendation_engine.generate_recommendations(
                 prediction_class=prediction_class,
                 confidence=confidence
             )
             
-            # Group recommendations
             grouped = recommendation_engine.get_recommendations_by_stakeholder(recommendations)
             
-            # Display results
             st.success(f"✅ Prediction Complete!")
             
-            # Result cards
             col1, col2, col3 = st.columns(3)
             
             with col1:
@@ -738,14 +701,12 @@ def show_prediction_page():
             with col2:
                 st.metric("🎲 Confidence", f"{confidence:.1%}")
             with col3:
-                st.metric("📊 Model", selected_model_name)
+                st.metric("📊 Model", "Stacking Ensemble")
             
-            # Visualization
             if probabilities:
                 fig = create_prediction_visualization(prediction_class, confidence, probabilities)
                 st.pyplot(fig)
             
-            # Save prediction to user history
             prediction_record = {
                 'timestamp': datetime.now().isoformat(),
                 'prediction_class': prediction_class,
@@ -759,11 +720,9 @@ def show_prediction_page():
             }
             add_prediction_to_user(st.session_state.username, prediction_record)
             
-            # Display recommendations
             st.subheader("💡 Your 10 Personalized Recommendations")
             st.info(f"📌 Recommendations tailored for: **{prediction_class.upper()}** households")
             
-            # Household Level (4)
             st.markdown("### 🏠 Household Level Actions (4)")
             for rec in grouped['household_level']:
                 st.markdown(f"""
@@ -773,7 +732,6 @@ def show_prediction_page():
                 </div>
                 """, unsafe_allow_html=True)
             
-            # NGO Interventions (3)
             st.markdown("### 🤝 NGO Interventions (3)")
             for rec in grouped['ngo_interventions']:
                 st.markdown(f"""
@@ -783,7 +741,6 @@ def show_prediction_page():
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Government Policies (3)
             st.markdown("### 🏛️ Government Policies (3)")
             for rec in grouped['government_policies']:
                 st.markdown(f"""
@@ -793,17 +750,15 @@ def show_prediction_page():
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Download results
             st.subheader("📥 Download Results")
             
-            # Create JSON report
             report_data = {
                 'username': st.session_state.username,
                 'timestamp': datetime.now().isoformat(),
                 'prediction': prediction_class,
                 'confidence': confidence,
                 'probabilities': probabilities,
-                'model': selected_model_name,
+                'model': 'Stacking Ensemble',
                 'input_summary': {
                     'welfare': welfare,
                     'household_size': hsize,
@@ -820,7 +775,6 @@ def show_prediction_page():
                 mime="application/json"
             )
             
-            # Download visualization
             if probabilities:
                 buf = io.BytesIO()
                 fig.savefig(buf, format='png', dpi=300, bbox_inches='tight')
@@ -849,7 +803,6 @@ def show_user_history():
     else:
         st.success(f"✅ Found {len(predictions)} prediction(s)")
         
-        # Display predictions
         for i, pred in enumerate(reversed(predictions)):
             with st.expander(f"📊 Prediction {len(predictions) - i} - {pred.get('prediction_class', 'Unknown')} ({pred.get('timestamp', '')[:10]})"):
                 st.write(f"**Prediction:** {pred.get('prediction_class', 'Unknown')}")
@@ -876,19 +829,16 @@ def show_account_settings():
     db = load_user_database()
     user_data = db.get('users', {}).get(st.session_state.username, {})
     
-    # Display account info
     st.subheader("📋 Account Information")
     st.write(f"**Username:** {st.session_state.username}")
     st.write(f"**Email:** {user_data.get('email', 'Not provided')}")
     st.write(f"**Member Since:** {user_data.get('created_at', '')[:10]}")
     
-    # Show password option
     st.subheader("🔑 Password")
     show_pwd = st.checkbox("Show Password")
     if show_pwd:
         st.info("Your password is securely hashed and cannot be displayed")
     
-    # Change password
     with st.form("change_password"):
         st.write("### Change Password")
         current_pwd = st.text_input("Current Password", type="password")
@@ -896,11 +846,9 @@ def show_account_settings():
         confirm_pwd = st.text_input("Confirm New Password", type="password")
         
         if st.form_submit_button("Change Password"):
-            # Verify current password
             success, _ = authenticate_user(st.session_state.username, current_pwd, 'user')
             if success:
                 if new_pwd == confirm_pwd and len(new_pwd) >= 4:
-                    # Update password
                     db = load_user_database()
                     db['users'][st.session_state.username]['password'] = hash_password(new_pwd)
                     save_user_database(db)
@@ -911,13 +859,16 @@ def show_account_settings():
                 st.error("❌ Current password is incorrect")
 
 # ==============================================================================
-# ADMIN DASHBOARD
+# ADMIN DASHBOARD - WITH UGANDA FLAG
 # ==============================================================================
 def show_admin_dashboard():
-    st.title("👨‍💼 Admin Dashboard")
-    st.markdown(f"*Welcome, {st.session_state.username}*")
+    # Uganda Flag Header
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image("https://upload.wikimedia.org/wikipedia/commons/4/4e/Flag_of_Uganda.svg", width=300)
+        st.title(f"👨‍💼 Admin Dashboard")
+        st.markdown(f"*Welcome, {st.session_state.username}*")
     
-    # Navigation
     nav_options = ["📊 All Users", "📜 All Predictions", "📈 Analytics", "🚪 Logout"]
     selected_nav = st.sidebar.radio("Admin Navigation:", nav_options)
     
@@ -927,13 +878,10 @@ def show_admin_dashboard():
         st.session_state.role = None
         st.session_state.page = 'login'
         st.rerun()
-    
     elif selected_nav == "📊 All Users":
         show_all_users()
-    
     elif selected_nav == "📜 All Predictions":
         show_all_predictions()
-    
     elif selected_nav == "📈 Analytics":
         show_admin_analytics()
 
@@ -951,7 +899,6 @@ def show_all_users():
     else:
         st.success(f"✅ Total Users: {len(all_users)}")
         
-        # Create users dataframe
         users_data = []
         for username, data in all_users.items():
             users_data.append({
@@ -964,7 +911,6 @@ def show_all_users():
         users_df = pd.DataFrame(users_data)
         st.dataframe(users_df, use_container_width=True)
         
-        # User details
         st.subheader("🔍 View User Details")
         selected_user = st.selectbox("Select User:", list(all_users.keys()))
         
@@ -988,7 +934,6 @@ def show_all_predictions():
     else:
         st.success(f"✅ Total Predictions: {len(all_predictions)}")
         
-        # Filter by user
         users_with_predictions = list(set(p.get('username', '') for p in all_predictions))
         filter_user = st.selectbox("Filter by User:", ["All"] + users_with_predictions)
         
@@ -996,7 +941,6 @@ def show_all_predictions():
         if filter_user != "All":
             filtered_predictions = [p for p in all_predictions if p.get('username') == filter_user]
         
-        # Display predictions
         for i, pred in enumerate(reversed(filtered_predictions)):
             with st.expander(f"📊 {pred.get('username', 'Unknown')} - {pred.get('prediction_class', 'Unknown')} ({pred.get('timestamp', '')[:10]})"):
                 st.write(f"**User:** {pred.get('username', 'Unknown')}")
@@ -1032,7 +976,6 @@ def show_admin_analytics():
         predictions_today = len([p for p in all_predictions if p.get('timestamp', '')[:10] == datetime.now().strftime('%Y-%m-%d')])
         st.metric("Predictions Today", predictions_today)
     
-    # Prediction distribution
     if all_predictions:
         st.subheader("📊 Prediction Distribution")
         pred_classes = [p.get('prediction_class', 'Unknown') for p in all_predictions]
@@ -1057,7 +1000,6 @@ def show_admin_analytics():
 # MAIN APP LOGIC
 # ==============================================================================
 def main():
-    # Check authentication
     if not st.session_state.logged_in:
         if st.session_state.page == 'register':
             show_register_page()
